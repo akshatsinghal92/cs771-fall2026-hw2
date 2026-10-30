@@ -31,6 +31,25 @@ Starter scaffolding (data pipelines, training loops, configs, eval scripts) is p
 
 Tracks are independent code-wise. Shubhangi's three pieces are strictly sequential. Akshat's `inference` is self-verifiable against the provided pretrained model (early correctness signal). Owners can swap tracks if preferred — update this section if you do.
 
+## Task dependencies
+
+**All three tracks are independent — nobody is blocked waiting on another person's code.** Everyone can start and finish their implementation in parallel from day one.
+
+| Track | File edited | Depends on another member? |
+|-------|-------------|----------------------------|
+| Ashvin (CNN) | `code/cls_libs/modeling.py` — `SimpleNet`/`default_cnn_model` | No |
+| Shubhangi (ViT) | `code/cls_libs/modeling.py` — `Attention`, `TransformerBlock`, `SimpleViT` | No |
+| Akshat (Detection) | `code/det_libs/modeling.py` — `inference`, `compute_loss` | No |
+
+- Detection uses a **ResNet** backbone, not the ViT `Attention` class — Akshat does **not** depend on Shubhangi. (That link only appears in the *bonus* Swin backbone, which has its own attention.)
+- Ashvin's CNN stands alone.
+
+**Within-person dependency (not cross-person):** Shubhangi's track is strictly sequential — `Attention` → `TransformerBlock` → `SimpleViT` (each uses the previous). This chain lives entirely inside her tasks. Combined with ViT being the slowest training run, she is the **longest critical path** and most likely schedule bottleneck — protect her timeline.
+
+**Couplings that need coordination (not task dependencies):**
+1. **Ashvin and Shubhangi edit the same file** (`cls_libs/modeling.py`) but different classes — no functional dependency, just a git merge concern. Use separate branches (`feat/cnn`, `feat/vit`) and separate PRs; non-overlapping classes mean conflicts should be rare/trivial. Akshat's file is entirely separate.
+2. **GPU sharing** (if fewer than 3 instances) and the **Day-3 writeup assembly** are the only real convergence points — scheduling, not code.
+
 ---
 
 ## DAY 1 — Setup + core implementation
