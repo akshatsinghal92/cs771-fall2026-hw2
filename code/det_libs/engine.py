@@ -7,6 +7,7 @@ import torch
 from torchvision.utils import draw_bounding_boxes, save_image
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
+from tqdm import tqdm
 
 from .utils import AverageMeter, convert_to_xywh, gen_distinct_colors
 
@@ -31,10 +32,17 @@ def train_one_epoch(
     # switch to train mode
     model.train()
 
-    # main training loop
+    # main training loop (wrapped in a tqdm progress bar)
     print("\n[Train]: Epoch {:d} started".format(curr_epoch))
     start = time.time()
-    for iter_idx, (imgs, targets) in enumerate(train_loader, 0):
+    pbar = tqdm(
+        train_loader,
+        total=num_iters,
+        desc="[Train] Epoch {:d}".format(curr_epoch),
+        dynamic_ncols=True,
+        leave=True,
+    )
+    for iter_idx, (imgs, targets) in enumerate(pbar, 0):
         imgs = list(img.to(device) for img in imgs)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
         # zero out optimizer
@@ -92,20 +100,13 @@ def train_one_epoch(
                     "train/final_loss", losses_tracker["final_loss"].val, global_step
                 )
 
-            # print to terminal
-            block1 = "Epoch: [{:03d}][{:05d}/{:05d}]".format(
-                curr_epoch, iter_idx, num_iters
-            )
-            block2 = "Time {:.2f} ({:.2f})".format(batch_time.val, batch_time.avg)
-            block3 = "Loss {:.2f} ({:.2f})\n".format(
-                losses_tracker["final_loss"].val, losses_tracker["final_loss"].avg
-            )
-            block4 = ""
+            # update the progress bar with running-average losses + lr
+            postfix = {"loss": "{:.3f}".format(losses_tracker["final_loss"].avg)}
             for key, value in losses_tracker.items():
                 if key != "final_loss":
-                    block4 += "\t{:s} {:.2f} ({:.2f})".format(key, value.val, value.avg)
-
-            print("\t".join([block1, block2, block3, block4]))
+                    postfix[key.replace("_loss", "")] = "{:.3f}".format(value.avg)
+            postfix["lr"] = "{:.1e}".format(lr)
+            pbar.set_postfix(postfix)
 
     # finish up and print
     lr = scheduler.get_last_lr()[0]
