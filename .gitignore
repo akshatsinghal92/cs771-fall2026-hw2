@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Datasets downloaded by the provided scripts (do not commit per submission rules)
+data/images/
+data/objects/
+data/VOCdevkit/
+data/*.tar
+data/*.tar.gz
+data/train.txt
+data/val.txt
+
+# Training outputs (assignment: do not submit logs/ or models/)
+logs/
+models/
+code/logs/
+code/models/
+
+# Checkpoints and pretrained weights (not committed — download/copy locally)
+*.pth
+*.pth.tar
