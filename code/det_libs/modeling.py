@@ -5,7 +5,7 @@ import torchvision
 from torchvision.models import resnet
 from torchvision.models.feature_extraction import create_feature_extractor
 from torchvision.ops.feature_pyramid_network import FeaturePyramidNetwork, LastLevelP6P7
-from torchvision.ops.boxes import batched_nms
+from torchvision.ops.boxes import batched_nms, remove_small_boxes
 
 import torch
 from torch import nn
@@ -427,4 +427,93 @@ class FCOS(nn.Module):
     def inference(
         self, points, strides, cls_logits, reg_outputs, ctr_logits, image_shapes
     ):
+        num_images = cls_logits[0].shape[0]
+        num_levels = len(cls_logits)
+        detections = []
+
+        # it is easier to reason about the inference one image at a time
+        for img_idx in range(num_images):
+            image_boxes = []
+            image_scores = []
+            image_labels = []
+
+            # (a) loop over every pyramid level
+            for level in range(num_levels):
+                # predictions for this image / level
+                cls_logit = cls_logits[level][img_idx]    # (C, H, W)
+                reg_output = reg_outputs[level][img_idx]  # (4, H, W) -> (l, t, r, b)
+                ctr_logit = ctr_logits[level][img_idx]    # (1, H, W)
+                stride = strides[level]
+                level_points = points[level]              # (H, W, 2) as (y, x)
+
+                num_classes = cls_logit.shape[0]
+
+                # flatten the spatial dims (row-major, consistent across tensors)
+                cls_prob = cls_logit.permute(1, 2, 0).reshape(-1, num_classes).sigmoid()
+                ctr_prob = ctr_logit.permute(1, 2, 0).reshape(-1).sigmoid()
+                reg = reg_output.permute(1, 2, 0).reshape(-1, 4)
+                pts = level_points.reshape(-1, 2)
+
+                # (1) object score per (location, class): sqrt(cls * center-ness)
+                scores = torch.sqrt(cls_prob * ctr_prob[:, None]).flatten()
+
+                # (2) keep candidates above the score threshold
+                keep = scores > self.score_thresh
+                scores = scores[keep]
+                keep_idxs = torch.nonzero(keep).squeeze(1)
+
+                # (3) keep only the top-K scoring candidates (before NMS)
+                num_topk = min(self.topk_candidates, scores.shape[0])
+                scores, topk = scores.topk(num_topk)
+                keep_idxs = keep_idxs[topk]
+
+                # recover the location index and the class index
+                point_idxs = torch.div(keep_idxs, num_classes, rounding_mode="floor")
+                class_idxs = keep_idxs % num_classes
+
+                # (4) decode boxes. The regression targets are in feature-grid
+                # units (divided by the stride in training), so scale back up here.
+                sel_reg = reg[point_idxs] * stride         # (K, 4)
+                sel_pts = pts[point_idxs]                  # (K, 2) as (y, x)
+                y_ctr, x_ctr = sel_pts[:, 0], sel_pts[:, 1]
+                left, top, right, bottom = sel_reg.unbind(dim=1)
+                boxes = torch.stack(
+                    [x_ctr - left, y_ctr - top, x_ctr + right, y_ctr + bottom],
+                    dim=1,
+                )                                          # (K, 4) in (x1, y1, x2, y2)
+
+                # (5) clip boxes to the image boundary (padding is outside this)
+                img_h, img_w = image_shapes[img_idx]
+                boxes[:, 0::2] = boxes[:, 0::2].clamp(min=0, max=img_w)
+                boxes[:, 1::2] = boxes[:, 1::2].clamp(min=0, max=img_h)
+
+                image_boxes.append(boxes)
+                image_scores.append(scores)
+                image_labels.append(class_idxs)
+
+            # (b) collect candidates across all pyramid levels
+            image_boxes = torch.cat(image_boxes, dim=0)
+            image_scores = torch.cat(image_scores, dim=0)
+            image_labels = torch.cat(image_labels, dim=0)
+
+            # drop degenerate / tiny boxes created by clipping
+            keep = remove_small_boxes(image_boxes, min_size=1e-2)
+            image_boxes = image_boxes[keep]
+            image_scores = image_scores[keep]
+            image_labels = image_labels[keep]
+
+            # (c) per-class NMS (boxes of different categories may overlap)
+            keep = batched_nms(image_boxes, image_scores, image_labels, self.nms_thresh)
+            # (d) keep the top detections after NMS
+            keep = keep[: self.detections_per_img]
+
+            detections.append(
+                {
+                    "boxes": image_boxes[keep],
+                    "scores": image_scores[keep],
+                    # +1 to compensate for the input label transform (0 = background)
+                    "labels": image_labels[keep] + 1,
+                }
+            )
+
         return detections
