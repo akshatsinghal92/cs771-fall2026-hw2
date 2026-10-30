@@ -201,7 +201,10 @@ to view TensorBoard locally. **Shut down the cloud instance when idle.**
    rule applies to everyone (admins included). New commits after approval dismiss the approval.
 5. Resolve conversations, then merge.
 
-Do **not** commit `data/`, `logs/`, `models/`, or `*.pth`/`*.pth.tar` (all gitignored).
+Do **not** commit `data/`, `logs/`, `models/`, or loose `*.pth`/`*.pth.tar` (all gitignored).
+**Exception:** everything under `results/` *is* tracked — that's the submission payload
+(configs, training logs, and **final** `model_final.*` checkpoints). Only place final
+checkpoints there; intermediate `epoch_*` checkpoints are auto-ignored even inside `results/`.
 
 ---
 

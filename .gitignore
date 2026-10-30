@@ -30,3 +30,10 @@ code/models/
 # Checkpoints and pretrained weights (not committed — download/copy locally)
 *.pth
 *.pth.tar
+
+# results/ IS part of the submission (configs, training logs, FINAL checkpoints).
+# Always track its contents, overriding the ignores above.
+!results/**
+# ...but still keep INTERMEDIATE epoch checkpoints out (submit only model_final.*).
+results/**/epoch_*.pth
+results/**/epoch_*.pth.tar
