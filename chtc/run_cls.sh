@@ -1,9 +1,12 @@
 #!/bin/bash
 # Runs one classification training job inside the CHTC Docker container.
-# usage: run_cls.sh <config yaml name, e.g. cls_miniplaces_cnn.yaml> <run name>
+# usage: run_cls.sh <config yaml name, e.g. cls_miniplaces_cnn.yaml>
 set -e
+echo "args: [$@]"
 CONFIG=$1
-NAME=$2
+if [ -z "$CONFIG" ]; then echo "ERROR: no config given" >&2; exit 1; fi
+# run name = config name without the yaml extension, e.g. cls_miniplaces_cnn
+NAME=$(basename "$CONFIG" .yaml)
 
 nvidia-smi
 export PIP_DISABLE_PIP_VERSION_CHECK=1

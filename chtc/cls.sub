@@ -3,17 +3,17 @@ universe                = docker
 docker_image            = pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
 
 executable              = chtc/run_cls.sh
-arguments               = $(config) $(run)
+arguments               = $(config)
 
 # code/ is copied as ./code; configs are read from code/configs
 transfer_input_files    = code
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT
-transfer_output_files   = logs_$(run).tar.gz
+transfer_output_files   = logs_$Fn(config).tar.gz
 
-log                     = chtc/$(run).log
-output                  = chtc/$(run).out
-error                   = chtc/$(run).err
+log                     = chtc/$Fn(config).log
+output                  = chtc/$Fn(config).out
+error                   = chtc/$Fn(config).err
 
 request_gpus            = 1
 request_cpus            = 4
@@ -22,8 +22,8 @@ request_disk            = 20GB
 +WantGPULab             = true
 +GPUJobLength           = "short"
 
-# one job per (config, run name)
-queue config,run from (
-  cls_miniplaces_cnn.yaml,cnn
-  cls_miniplaces_resnet18.yaml,resnet18
+# one job per config
+queue config from (
+  cls_miniplaces_cnn.yaml
+  cls_miniplaces_resnet18.yaml
 )
