@@ -112,7 +112,7 @@ Our model reaches 59.3% mAP@0.5, about 1.6 points below the pretrained reference
 
 ## Contributions
 - **Akshat** — Object detection (FCOS inference and training loss), repository/infra setup.
-- **Ashvin** — Custom CNN design and training (`CustomNet`), fine-tuned ResNet-18 run, CHTC job setup, CNN vs. SimpleNet vs. ResNet-18 comparison.
+- **Ashvin** — Custom CNN design and training (`CustomNet`), fine-tuned ResNet-18 run, CHTC/Colab job setup, CNN vs. SimpleNet vs. ResNet-18 comparison.
 - **Shubhangi** — *(self-attention, Transformer block, Vision Transformer)*
 
 ## Additional packages
