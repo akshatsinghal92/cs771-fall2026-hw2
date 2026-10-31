@@ -25,11 +25,30 @@ Starter scaffolding (data pipelines, training loops, configs, eval scripts) is p
 
 ## Role split
 
-- **Person A — Classification/CNN:** custom CNN (I.2) + ResNet-18 fine-tune runs + classification writeup.
-- **Person B — Classification/ViT:** Attention (I.3a) → TransformerBlock (I.3b) → SimpleViT (I.4) + ViT writeup.
-- **Person C — Detection:** FCOS inference (II.1) → compute_loss (II.2) + detection writeup.
+- **Ashvin — Classification/CNN:** custom CNN (I.2) + ResNet-18 fine-tune runs + classification writeup.
+- **Shubhangi — Classification/ViT:** Attention (I.3a) → TransformerBlock (I.3b) → SimpleViT (I.4) + ViT writeup.
+- **Akshat — Detection:** FCOS inference (II.1) → compute_loss (II.2) + detection writeup. Also owns repo/infra setup.
 
-Tracks are independent code-wise. B's three pieces are strictly sequential. C's `inference` is self-verifiable against the provided pretrained model (early correctness signal).
+Tracks are independent code-wise. Shubhangi's three pieces are strictly sequential. Akshat's `inference` is self-verifiable against the provided pretrained model (early correctness signal). Owners can swap tracks if preferred — update this section if you do.
+
+## Task dependencies
+
+**All three tracks are independent — nobody is blocked waiting on another person's code.** Everyone can start and finish their implementation in parallel from day one.
+
+| Track | File edited | Depends on another member? |
+|-------|-------------|----------------------------|
+| Ashvin (CNN) | `code/cls_libs/modeling.py` — `SimpleNet`/`default_cnn_model` | No |
+| Shubhangi (ViT) | `code/cls_libs/modeling.py` — `Attention`, `TransformerBlock`, `SimpleViT` | No |
+| Akshat (Detection) | `code/det_libs/modeling.py` — `inference`, `compute_loss` | No |
+
+- Detection uses a **ResNet** backbone, not the ViT `Attention` class — Akshat does **not** depend on Shubhangi. (That link only appears in the *bonus* Swin backbone, which has its own attention.)
+- Ashvin's CNN stands alone.
+
+**Within-person dependency (not cross-person):** Shubhangi's track is strictly sequential — `Attention` → `TransformerBlock` → `SimpleViT` (each uses the previous). This chain lives entirely inside her tasks. Combined with ViT being the slowest training run, she is the **longest critical path** and most likely schedule bottleneck — protect her timeline.
+
+**Couplings that need coordination (not task dependencies):**
+1. **Ashvin and Shubhangi edit the same file** (`cls_libs/modeling.py`) but different classes — no functional dependency, just a git merge concern. Use separate branches (`feat/cnn`, `feat/vit`) and separate PRs; non-overlapping classes mean conflicts should be rare/trivial. Akshat's file is entirely separate.
+2. **GPU sharing** (if fewer than 3 instances) and the **Day-3 writeup assembly** are the only real convergence points — scheduling, not code.
 
 ---
 
@@ -38,30 +57,30 @@ Tracks are independent code-wise. B's three pieces are strictly sequential. C's 
 **Morning (all together)**
 1. Set up cloud GPU instances; install deps (PyTorch ≥2.0+GPU, OpenCV, torchvision, pycocotools, PyYAML, gdown, Pillow, TensorBoard). Record extra packages for writeup.
 2. `sh download_cls_dataset.sh` and `sh download_det_dataset.sh` → `./data/`. Verify contents.
-3. **A:** run provided SimpleNet baseline to confirm pipeline (~40%).
+3. **Ashvin:** run provided SimpleNet baseline to confirm pipeline (~40%).
 4. All: read helper code for your track.
 
 **Afternoon/evening (parallel)**
-- **C (priority):** implement `FCOS.inference`; verify `eval_det.py ../pretrained/det_voc_res18.yaml ../pretrained/det_voc_res18.pth.tar` → ≈60.9% mAP. Correctness gate.
-- **B:** implement `Attention.forward` + `TransformerBlock.forward`; shape-test on dummy tensor.
-- **A:** design improved CNN; smoke-test 1 epoch.
+- **Akshat (priority):** implement `FCOS.inference`; verify `eval_det.py ../pretrained/det_voc_res18.yaml ../pretrained/det_voc_res18.pth.tar` → ≈60.9% mAP. Correctness gate.
+- **Shubhangi:** implement `Attention.forward` + `TransformerBlock.forward`; shape-test on dummy tensor.
+- **Ashvin:** design improved CNN; smoke-test 1 epoch.
 
 **End-of-Day-1 checkpoint — launch overnight runs:**
-- **A:** full custom CNN training.
-- **A:** ResNet-18 fine-tune (`cls_miniplaces_resnet18.yaml`).
+- **Ashvin:** full custom CNN training.
+- **Ashvin:** ResNet-18 fine-tune (`cls_miniplaces_resnet18.yaml`).
 - Use tmux; confirm GPU active with `watch -n 0.1 nvidia-smi`.
 
 ## DAY 2 — Finish implementation, launch slow runs
 
 **Morning (parallel)**
-- **C:** implement `FCOS.compute_loss`; verify loss decreases + 10 epochs <30 min on T4.
-- **B:** implement `SimpleViT`; smoke-test 1 epoch.
-- **A:** review overnight CNN + ResNet-18 in TensorBoard; iterate/relaunch if CNN underperforms; copy logs locally.
+- **Akshat:** implement `FCOS.compute_loss`; verify loss decreases + 10 epochs <30 min on T4.
+- **Shubhangi:** implement `SimpleViT`; smoke-test 1 epoch.
+- **Ashvin:** review overnight CNN + ResNet-18 in TensorBoard; iterate/relaunch if CNN underperforms; copy logs locally.
 
 **Afternoon → overnight**
-- **C:** full FCOS training (`det_voc_fcos.yaml`); eval with `-v` for detection visualizations.
-- **B:** full ViT training (`cls_miniplaces_vit.yaml`) — slowest run, let it run overnight.
-- **A:** relaunch better CNN config if needed.
+- **Akshat:** full FCOS training (`det_voc_fcos.yaml`); eval with `-v` for detection visualizations.
+- **Shubhangi:** full ViT training (`cls_miniplaces_vit.yaml`) — slowest run, let it run overnight.
+- **Ashvin:** relaunch better CNN config if needed.
 
 **End-of-Day-2 checkpoint:** all 4 code pieces done + verified; all training done or running. Start writeup drafts.
 
@@ -69,9 +88,9 @@ Tracks are independent code-wise. B's three pieces are strictly sequential. C's 
 
 **Morning**
 - All: pull final checkpoints + logs; generate TensorBoard curves.
-- **C:** final `eval_det.py -v`; record mAP + inference time + sample detections.
-- **A:** record top-1/top-5 for custom CNN, SimpleNet, ResNet-18 → comparison table.
-- **B:** record ViT top-1/top-5.
+- **Akshat:** final `eval_det.py -v`; record mAP + inference time + sample detections.
+- **Ashvin:** record top-1/top-5 for custom CNN, SimpleNet, ResNet-18 → comparison table.
+- **Shubhangi:** record ViT top-1/top-5.
 - Last window to relaunch a short run if anything is broken.
 
 **Afternoon — writeup (each owns a section; one assembles)**
