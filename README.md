@@ -36,8 +36,9 @@ All implementation happens in **two files**. Everything else is provided.
 - FCOS with a **Swin Transformer** backbone (+2)
 - Training & inference on **COCO** (+2)
 
-> ⚠️ The starter code **will not run until the stubs above are filled in** — each stubbed
-> method currently returns an undefined/unmodified value.
+> **Status:** the classification CNN (I.2), self-attention / Transformer / ViT (I.3, I.4) and
+> both FCOS pieces (II.1, II.2) are implemented. `default_cnn_model` points to `CustomNet`
+> (a ResNet-style CNN); the provided `SimpleNet` is still in the file for reference.
 
 ---
 
@@ -123,6 +124,30 @@ to share it, and place it at `pretrained/det_voc_res18.pth.tar`.
 
 ## 4. Running the code
 
+### 4.0 Quick start (classification, from a fresh clone)
+
+```bash
+git clone https://github.com/akshatsinghal92/cs771-fall2026-hw2.git
+cd cs771-fall2026-hw2
+python3 -m venv .venv && source .venv/bin/activate
+pip install torch torchvision                      # use the CUDA index URL from §3.3 on a GPU machine
+pip install "opencv-python>=4" numpy gdown pycocotools pyyaml pillow tensorboard
+mkdir -p data && sh download_cls_dataset.sh        # needs wget; downloads ~MiniPlaces into data/
+cd code
+python train_cls.py configs/cls_miniplaces_cnn.yaml --output run1
+python eval_cls.py configs/cls_miniplaces_cnn.yaml ../logs/<exp>/
+```
+
+- Everything is run from `code/`. Checkpoints, TensorBoard events and `config.txt` are written to
+  `../logs/<config name>_<--output value>/` (without `--output` the suffix is a timestamp).
+- `eval_cls.py` accepts the experiment folder (uses `model_final.pth.tar` if present, else the last epoch checkpoint) or a `.pth.tar` file;
+  `-e N` picks a specific zero-based epoch.
+- The final weights are saved as `model_final.pth.tar` in the experiment folder.
+- Quick sanity check of any model on CPU: add `devices: ["cpu"]` and `opt: {epochs: 1}` to a copy
+  of the config.
+- Training on a GPU is strongly recommended. The CNN run takes 60 epochs and ResNet-18 fine-tuning
+  takes 20 (see `code/cls_libs/config.py` for defaults).
+
 Run all commands from the **`code/`** directory.
 
 ```bash
@@ -137,7 +162,7 @@ python train_cls.py --help
 python eval_cls.py  --help
 
 # train (config selects the model via model_type / its own file)
-python train_cls.py configs/cls_miniplaces_cnn.yaml          # provided SimpleNet baseline (~40%)
+python train_cls.py configs/cls_miniplaces_cnn.yaml          # our CustomNet CNN (default_cnn_model)
 python train_cls.py configs/cls_miniplaces_resnet18.yaml     # fine-tune ImageNet ResNet-18
 python train_cls.py configs/cls_miniplaces_vit.yaml          # SimpleViT (AdamW)
 

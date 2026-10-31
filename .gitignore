@@ -40,3 +40,8 @@ logs_*.tar.gz
 # ...but still keep INTERMEDIATE epoch checkpoints out (submit only model_final.*).
 results/**/epoch_*.pth
 results/**/epoch_*.pth.tar
+
+# Cluster/notebook helper files (kept locally only)
+chtc/cls.sub
+chtc/run_cls.sh
+colab_cls.ipynb
