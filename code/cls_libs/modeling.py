@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import math
 
 from .blocks import (PatchEmbed, window_partition, window_unpartition,
@@ -118,6 +119,15 @@ class Attention(nn.Module):
         #################################################################################
         # Fill in the code here
         #################################################################################
+        attn = (q * self.scale) @ k.transpose(-2, -1)
+        attn = attn.softmax(dim=-1)
+        x = (
+            (attn @ v)
+            .view(B, self.num_heads, H, W, -1)
+            .permute(0, 2, 3, 1, 4)
+            .reshape(B, H, W, -1)
+        )
+        x = self.proj(x)
         return x
 
 class TransformerBlock(nn.Module):
@@ -172,6 +182,17 @@ class TransformerBlock(nn.Module):
         ########################################################################
         # The implementation shall support local self-attention
         # (also known as window attention)
+        if self.window_size > 0:
+            H, W = x.shape[1], x.shape[2]
+            x, pad_hw = window_partition(x, self.window_size)
+
+        x = self.attn(x)
+
+        if self.window_size > 0:
+            x = window_unpartition(x, self.window_size, pad_hw, (H, W))
+
+        x = shortcut + self.drop_path(x)
+        x = x + self.drop_path(self.mlp(self.norm2(x)))
         return x
 
 
@@ -256,6 +277,26 @@ class SimpleViT(nn.Module):
         # Fill in the code here
         ########################################################################
         # The implementation shall define some Transformer blocks
+        self.blocks = nn.ModuleList([
+            TransformerBlock(
+                dim=embed_dim,
+                num_heads=num_heads,
+                mlp_ratio=mlp_ratio,
+                qkv_bias=qkv_bias,
+                drop_path=dpr[i],
+                norm_layer=norm_layer,
+                act_layer=act_layer,
+                window_size=window_size if i in window_block_indexes else 0,
+            )
+            for i in range(depth)
+        ])
+        self.norm = norm_layer(embed_dim)
+        self.head = (
+            nn.Linear(embed_dim, num_classes)
+            if num_classes and num_classes > 0
+            else nn.Identity()
+        )
+        self.fc = self.head
 
 
         if self.pos_embed is not None:
@@ -277,7 +318,24 @@ class SimpleViT(nn.Module):
         ########################################################################
         # Fill in the code here
         ########################################################################
+        x = self.patch_embed(x)
+        if self.pos_embed is not None:
+            if self.pos_embed.shape[1:3] == x.shape[1:3]:
+                x = x + self.pos_embed
+            else:
+                pos_embed = self.pos_embed.permute(0, 3, 1, 2)
+                pos_embed = F.interpolate(
+                    pos_embed, size=x.shape[1:3], mode="bicubic", align_corners=False
+                )
+                pos_embed = pos_embed.permute(0, 2, 3, 1)
+                x = x + pos_embed
 
+        for blk in self.blocks:
+            x = blk(x)
+
+        x = self.norm(x)
+        x = x.mean(dim=(1, 2))
+        x = self.head(x)
         return x
 
 # change this to your model!
