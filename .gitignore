@@ -51,3 +51,6 @@ transfer_to_chtc.sh
 
 # ResNet-18 fine-tune checkpoint: not required by the handout
 results/cls_resnet18/model_final.pth.tar
+
+# Output of reproduce_cls.sh
+reproduced/

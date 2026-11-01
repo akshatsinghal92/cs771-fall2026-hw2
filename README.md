@@ -203,6 +203,28 @@ devices:
   - "cpu"             # or "mps" on mac, or "cuda:0" (default)
 ```
 
+### 4.5 Reproducing our classification results (any GPU, no CHTC needed)
+
+`reproduce_cls.sh` runs the exact steps we ran on CHTC (train, evaluate, collect outputs) and writes the
+same files as `results/cls_cnn/` and `results/cls_resnet18/`:
+
+```bash
+pip install -r requirements.txt            # on Colab, skip torch/torchvision (keep Colab's CUDA build) and install the rest
+mkdir -p data && sh download_cls_dataset.sh
+./reproduce_cls.sh                         # or: ./reproduce_cls.sh cnn   /   ./reproduce_cls.sh resnet18
+```
+
+Outputs go to `./reproduced/` (override with `OUT_DIR=...`), so `results/` is never overwritten:
+
+```
+reproduced/cls_cnn/       cls_miniplaces_cnn.yaml  config.txt  eval_cls_miniplaces_cnn.txt  tensorboard/  model_final.pth.tar
+reproduced/cls_resnet18/  cls_miniplaces_resnet18.yaml  config.txt  eval_cls_miniplaces_resnet18.txt  tensorboard/
+```
+
+Training is not seeded and uses fp16 and cuDNN autotuning, so accuracies will differ slightly from ours
+(CNN 49.83 / 78.36, ResNet-18 57.68 / 84.91 top-1 / top-5). Expect about 1 point of run-to-run variation. The
+60-epoch CNN run needs a GPU; on Colab, run it in a background cell or under `tmux` so it is not lost.
+
 ### 4.4 Monitoring
 
 ```bash
