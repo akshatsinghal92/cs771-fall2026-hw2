@@ -20,12 +20,14 @@ A 3×3 stride-2 conv plus max-pool stem takes the 128×128 input to 32×32. Glob
 
 | | Top-1 | Top-5 |
 |---|---|---|
-| Custom CNN, final epoch | 49.18 | 77.51 |
-| Custom CNN, best epoch | 49.38 | 77.80 |
+| Final checkpoint, `eval_cls.py` (with horizontal-flip averaging) | 49.83 | 78.36 |
+| Final epoch, training-time validation (no flip) | 49.18 | 77.51 |
 
-Validation accuracy plateaus over the last ~10 epochs as the cosine schedule decays. Training accuracy (mean of the last five logged batches) is ~66% top-1 against 49% on validation, so the network overfits. Further regularization (stronger weight decay or dropout) is the obvious next step; we did not run it.
+The first row comes from running `eval_cls.py` on `model_final.pth.tar`; it averages the predictions for each image and its horizontal flip. The second row is the validation accuracy logged during training, which uses no flip. We report the first as our final result.
 
-Files: config `results/cls_cnn/cls_miniplaces_cnn.yaml`, logs `results/cls_cnn/tensorboard/` and `config.txt`, final checkpoint `results/cls_cnn/model_final.pth.tar`.
+Validation accuracy plateaus over the last ~10 epochs as the cosine schedule decays. Training accuracy (mean of the last five logged batches) is ~66% top-1 against ~49% on validation, so the network overfits. Further regularization (stronger weight decay or dropout) is the obvious next step; we did not run it.
+
+Files: config `results/cls_cnn/cls_miniplaces_cnn.yaml`, logs `results/cls_cnn/tensorboard/`, `config.txt` and `eval_cls_miniplaces_cnn.txt`, final checkpoint `results/cls_cnn/model_final.pth.tar`.
 
 ### I.2 Self-Attention and Transformer Block
 *(Shubhangi — brief explanation of multi-head self-attention and the local-window Transformer block.)*
@@ -36,15 +38,15 @@ Files: config `results/cls_cnn/cls_miniplaces_cnn.yaml`, logs `results/cls_cnn/t
 ### I.4 Comparison
 ![Validation top-1 and top-5 accuracy per epoch.](figures/cls_curves.png)
 
-*Figure: Validation accuracy of the custom CNN (trained from scratch, 60 epochs) and fine-tuned ResNet-18 (20 epochs). SimpleNet is shown as the ~40% top-1 reference given in the assignment; we did not train it.*
+*Figure: Validation accuracy during training (no flip averaging) of the custom CNN (trained from scratch, 60 epochs) and fine-tuned ResNet-18 (20 epochs). SimpleNet is shown as the ~40% top-1 reference given in the assignment; we did not train it.*
 
 | Model | Initialization | Params | Epochs | Top-1 | Top-5 |
 |---|---|---|---|---|---|
 | SimpleNet (provided) | scratch | ~0.37M | – | ~40 (as given) | not reported |
-| Custom CNN | scratch | ~11.2M | 60 | 49.18 | 77.51 |
-| ResNet-18 | ImageNet-pretrained, fine-tuned | ~11.2M | 20 | 56.94 | 84.18 |
+| Custom CNN | scratch | ~11.2M | 60 | 49.83 | 78.36 |
+| ResNet-18 | ImageNet-pretrained, fine-tuned | ~11.2M | 20 | 57.68 | 84.91 |
 
-Our CNN improves on SimpleNet by about 9 points top-1. Part of this gain comes from BatchNorm and skip connections, which make the deeper network trainable, and part from the much larger capacity, so the comparison does not isolate either factor. Fine-tuned ResNet-18 is the best of the three, about 8 points above our CNN, even though it trained for a third as many epochs. It has nearly the same architecture and parameter count, so the gap is explained by ImageNet pretraining, not model design: the pretrained network starts at ~41% top-1 after the first epoch, while ours starts near 7% and needs about 20 epochs to pass SimpleNet's level. ResNet-18 fine-tuning used lr 0.01 and the same optimizer, schedule and augmentation as the CNN run; its config and training logs are in `results/cls_resnet18/`.
+Our CNN improves on SimpleNet by about 10 points top-1. Part of this gain comes from BatchNorm and skip connections, which make the deeper network trainable, and part from the much larger capacity, so the comparison does not isolate either factor. Fine-tuned ResNet-18 is the best of the three, about 8 points above our CNN (57.68% vs. 49.83% top-1), even though it trained for a third as many epochs. It has nearly the same architecture and parameter count, so the gap is explained by ImageNet pretraining, not model design: the pretrained network starts at ~41% top-1 after the first epoch, while ours starts near 7% and needs about 20 epochs to pass SimpleNet's level. ResNet-18 fine-tuning used lr 0.01 and the same optimizer, schedule and augmentation as the CNN run; its config, training logs and eval output are in `results/cls_resnet18/`. Table values are from `eval_cls.py` on the final checkpoints; the curves show training-time validation accuracy, which is about 0.7 points lower because it does not use flip averaging.
 
 ---
 
