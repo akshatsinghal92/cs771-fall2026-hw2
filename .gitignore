@@ -48,3 +48,6 @@ colab_cls.ipynb
 chtc/eval_cls.sub
 chtc/run_eval_cls.sh
 transfer_to_chtc.sh
+
+# ResNet-18 fine-tune checkpoint: not required by the handout
+results/cls_resnet18/model_final.pth.tar
