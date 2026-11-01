@@ -71,9 +71,86 @@ class SimpleNet(nn.Module):
 # Part I.2: Design your own CNN
 ################################################################################
 # define your own network here
+class BasicBlock(nn.Module):
+    # two 3x3 convs with BatchNorm and an identity / 1x1-projection skip
+    def __init__(self, conv_op, in_ch, out_ch, stride=1):
+        super().__init__()
+        self.conv1 = conv_op(in_ch, out_ch, kernel_size=3, stride=stride,
+                             padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_ch)
+        self.conv2 = conv_op(out_ch, out_ch, kernel_size=3, stride=1,
+                             padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_ch)
+        self.relu = nn.ReLU(inplace=True)
+        if stride != 1 or in_ch != out_ch:
+            self.shortcut = nn.Sequential(
+                conv_op(in_ch, out_ch, kernel_size=1, stride=stride,
+                        bias=False),
+                nn.BatchNorm2d(out_ch),
+            )
+        else:
+            self.shortcut = nn.Identity()
+
+    def forward(self, x):
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        return self.relu(out + self.shortcut(x))
+
+
+class CustomNet(nn.Module):
+    # a small ResNet-style CNN (BatchNorm + skip connections + more depth)
+    def __init__(self, conv_op=nn.Conv2d, num_classes=100,
+                 widths=(64, 128, 256, 512), blocks=(2, 2, 2, 2),
+                 dropout=0.2):
+        super().__init__()
+        # stem: conv 3x3 stride 2 (128 -> 64), then 1/2 max pooling (-> 32)
+        self.stem = nn.Sequential(
+            conv_op(3, widths[0], kernel_size=3, stride=2, padding=1,
+                    bias=False),
+            nn.BatchNorm2d(widths[0]),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+        )
+        layers = []
+        in_ch = widths[0]
+        for i, (w, n) in enumerate(zip(widths, blocks)):
+            for j in range(n):
+                stride = 2 if (i > 0 and j == 0) else 1
+                layers.append(BasicBlock(conv_op, in_ch, w, stride))
+                in_ch = w
+        self.layers = nn.Sequential(*layers)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout = nn.Dropout(dropout)
+        self.fc = nn.Linear(in_ch, num_classes)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(
+                    m.weight, mode="fan_out", nonlinearity="relu"
+                )
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+        # zero-init last BN of each residual branch: blocks start as identity
+        for m in self.modules():
+            if isinstance(m, BasicBlock):
+                nn.init.constant_(m.bn2.weight, 0.0)
+
+    def forward(self, x):
+        x = self.stem(x)
+        x = self.layers(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.dropout(x)
+        return self.fc(x)
+
 
 # change this to your model!
-default_cnn_model = SimpleNet
+default_cnn_model = CustomNet
 
 ################################################################################
 # Part I.3: Understanding self-attention and Transformer block

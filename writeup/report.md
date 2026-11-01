@@ -7,7 +7,27 @@
 ## Part I — Image Classification (MiniPlaces)
 
 ### I.1 Custom CNN
-*(Ashvin — model design, training scheme, results; include config, logs, final checkpoint.)*
+We replaced the provided SimpleNet (a shallow 7×7-conv network with no normalization, ~0.37M parameters) with `CustomNet`, a small ResNet-style network (~11.2M parameters) in `cls_libs/modeling.py`. The three changes aimed at the baseline's weaknesses are:
+- **BatchNorm** after every convolution, which stabilizes training and permits a large learning rate.
+- **Skip connections.** The body is eight residual `BasicBlock`s (two 3×3 convs each), with a 1×1 projection on the skip path whenever the stride or channel count changes.
+- **More depth.** Four stages of two blocks each, with widths 64/128/256/512 and stride-2 downsampling at the start of stages 2–4.
+
+A 3×3 stride-2 conv plus max-pool stem takes the 128×128 input to 32×32. Global average pooling, dropout (0.2) and a linear classifier finish the network. Convolutions use Kaiming initialization, and the last BatchNorm of each residual branch is zero-initialized so every block starts as an identity mapping.
+
+**Training scheme.** Provided pipeline and defaults: SGD (momentum 0.9, weight decay 1e-4), learning rate 0.1 with one warmup epoch then a cosine schedule, batch size 512, fp16, 60 epochs, random crop to 128×128 with color jitter and rotation augmentation. Training ran on a single GPU on CHTC.
+
+**Results** (MiniPlaces validation set):
+
+| | Top-1 | Top-5 |
+|---|---|---|
+| Final checkpoint, `eval_cls.py` (with horizontal-flip averaging) | 49.83 | 78.36 |
+| Final epoch, training-time validation (no flip) | 49.18 | 77.51 |
+
+The first row comes from running `eval_cls.py` on `model_final.pth.tar`; it averages the predictions for each image and its horizontal flip. The second row is the validation accuracy logged during training, which uses no flip. We report the first as our final result.
+
+Validation accuracy plateaus over the last ~10 epochs as the cosine schedule decays. Training accuracy (mean of the last five logged batches) is ~66% top-1 against ~49% on validation, so the network overfits. Further regularization (stronger weight decay or dropout) is the obvious next step; we did not run it.
+
+Files: config `results/cls_cnn/cls_miniplaces_cnn.yaml`, logs `results/cls_cnn/tensorboard/`, `config.txt` and `eval_cls_miniplaces_cnn.txt`, final checkpoint `results/cls_cnn/model_final.pth.tar`.
 
 ### I.2 Self-Attention and Transformer Block
 *(Shubhangi — brief explanation of multi-head self-attention and the local-window Transformer block.)*
@@ -16,7 +36,17 @@
 *(Shubhangi — SimpleViT design, training scheme, results; include config, logs, final checkpoint.)*
 
 ### I.4 Comparison
-*(Best CNN vs. provided SimpleNet vs. fine-tuned ResNet-18 — training curves and top-1/top-5 accuracy.)*
+![Validation top-1 and top-5 accuracy per epoch.](figures/cls_curves.png)
+
+*Figure: Validation accuracy during training (no flip averaging) of the custom CNN (trained from scratch, 60 epochs) and fine-tuned ResNet-18 (20 epochs). SimpleNet is shown as the ~40% top-1 reference given in the assignment; we did not train it.*
+
+| Model | Initialization | Params | Epochs | Top-1 | Top-5 |
+|---|---|---|---|---|---|
+| SimpleNet (provided) | scratch | ~0.37M | – | ~40 (as given) | not reported |
+| Custom CNN | scratch | ~11.2M | 60 | 49.83 | 78.36 |
+| ResNet-18 | ImageNet-pretrained, fine-tuned | ~11.2M | 20 | 57.68 | 84.91 |
+
+Our CNN improves on SimpleNet by about 10 points top-1. Part of this gain comes from BatchNorm and skip connections, which make the deeper network trainable, and part from the much larger capacity, so the comparison does not isolate either factor. Fine-tuned ResNet-18 is the best of the three, about 8 points above our CNN (57.68% vs. 49.83% top-1), even though it trained for a third as many epochs. It has nearly the same architecture and parameter count, so the gap is explained by ImageNet pretraining, not model design: the pretrained network starts at ~41% top-1 after the first epoch, while ours starts near 7% and needs about 20 epochs to pass SimpleNet's level. ResNet-18 fine-tuning used lr 0.01 and the same optimizer, schedule and augmentation as the CNN run; its config, training logs and eval output are in `results/cls_resnet18/`. Table values are from `eval_cls.py` on the final checkpoints; the curves show training-time validation accuracy, which is about 0.7 points lower because it does not use flip averaging.
 
 ---
 
@@ -84,7 +114,7 @@ Our model reaches 59.3% mAP@0.5, about 1.6 points below the pretrained reference
 
 ## Contributions
 - **Akshat** — Object detection (FCOS inference and training loss), repository/infra setup.
-- **Ashvin** — *(classification CNN)*
+- **Ashvin** — Custom CNN design and training (`CustomNet`), fine-tuned ResNet-18 run, CHTC/Colab job setup, CNN vs. SimpleNet vs. ResNet-18 comparison.
 - **Shubhangi** — *(self-attention, Transformer block, Vision Transformer)*
 
 ## Additional packages

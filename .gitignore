@@ -31,9 +31,26 @@ code/models/
 *.pth
 *.pth.tar
 
+# Tarballs of logs/checkpoints returned from CHTC
+logs_*.tar.gz
+
 # results/ IS part of the submission (configs, training logs, FINAL checkpoints).
 # Always track its contents, overriding the ignores above.
 !results/**
 # ...but still keep INTERMEDIATE epoch checkpoints out (submit only model_final.*).
 results/**/epoch_*.pth
 results/**/epoch_*.pth.tar
+
+# Cluster/notebook helper files (kept locally only)
+chtc/cls.sub
+chtc/run_cls.sh
+colab_cls.ipynb
+chtc/eval_cls.sub
+chtc/run_eval_cls.sh
+transfer_to_chtc.sh
+
+# ResNet-18 fine-tune checkpoint: not required by the handout
+results/cls_resnet18/model_final.pth.tar
+
+# Output of reproduce_cls.sh
+reproduced/
