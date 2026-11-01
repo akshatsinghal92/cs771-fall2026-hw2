@@ -45,3 +45,5 @@ results/**/epoch_*.pth.tar
 chtc/cls.sub
 chtc/run_cls.sh
 colab_cls.ipynb
+chtc/eval_cls.sub
+chtc/run_eval_cls.sh
