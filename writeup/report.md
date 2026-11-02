@@ -29,7 +29,20 @@ Validation accuracy plateaus over the last ~10 epochs as the cosine schedule dec
 
 Files: config `results/cls_cnn/cls_miniplaces_cnn.yaml`, logs `results/cls_cnn/tensorboard/`, `config.txt` and `eval_cls_miniplaces_cnn.txt`, final checkpoint `results/cls_cnn/model_final.pth.tar`.
 
-### I.2 Self-Attention and Transformer Block
+### I.2 Comparison: Custom CNN vs. SimpleNet vs. ResNet-18
+![Validation top-1 and top-5 accuracy per epoch.](figures/cls_curves.png)
+
+*Figure 1: Validation accuracy during training (no flip averaging) of SimpleNet (provided, trained from scratch, 60 epochs), our custom CNN (scratch, 60 epochs) and fine-tuned ResNet-18 (20 epochs).*
+
+| Model | Initialization | Params | Epochs | Top-1 | Top-5 |
+|---|---|---|---|---|---|
+| SimpleNet (provided) | scratch | ~0.37M | 60 | 42.66 | 72.55 |
+| Custom CNN | scratch | ~11.2M | 60 | 49.83 | 78.36 |
+| ResNet-18 | ImageNet-pretrained, fine-tuned | ~11.2M | 20 | 57.68 | 84.91 |
+
+We trained SimpleNet with the default configuration (`results/cls_simplenet/`); it reaches 42.66% top-1, consistent with the ~40% given in the assignment. Its training top-1 (43.4%) is close to its validation top-1 (42.3%), so it is limited by capacity rather than overfitting, whereas our CNN overfits (66% vs. 49%). Our CNN improves on SimpleNet by about 7 points top-1 (49.83% vs. 42.66%) and about 6 points top-5. Part of this gain comes from BatchNorm and skip connections, which make the deeper network trainable, and part from the much larger capacity, so the comparison does not isolate either factor. Fine-tuned ResNet-18 is the best of the three, about 8 points above our CNN (57.68% vs. 49.83% top-1) and 15 points above SimpleNet, even though it trained for a third as many epochs. It has nearly the same architecture and parameter count, so the gap is explained by ImageNet pretraining, not model design: the pretrained network starts at ~41% top-1 after the first epoch, while ours starts near 7% and needs about 25–30 epochs to pass SimpleNet's final level. ResNet-18 fine-tuning used lr 0.01 and the same optimizer, schedule and augmentation as the CNN run; its config, training logs and eval output are in `results/cls_resnet18/`. The SimpleNet config, logs, eval output and checkpoint are in `results/cls_simplenet/`. Table values are from `eval_cls.py` on the final checkpoints; the curves show training-time validation accuracy, which is about 0.7 points lower because it does not use flip averaging.
+
+### I.3 Self-Attention and Transformer Block
 
 #### Multi-Head Self-Attention (MSA)
 Self-attention computes a weighted representation of input tokens by measuring pairwise similarities between query and key projections. Given an input sequence of tokens $Z^0 \in \mathbb{R}^{T \times D}$ where $T = H \times W$ and $D$ is the embedding dimension, learnable linear projections produce queries, keys, and values:
@@ -50,9 +63,9 @@ where the MLP consists of two linear layers with a GELU activation and expansion
 
 When `window_size > 0`, the spatial feature map is partitioned into non-overlapping windows using `window_partition`, padding the boundaries if $H$ or $W$ is not divisible by $W_w$. Self-attention operates independently within each window. The tokens are then reassembled into the full spatial layout using `window_unpartition` before adding the residual connection. When `window_size = 0`, the block performs full global self-attention across all tokens.
 
-### I.3 Vision Transformer
+### I.4 Vision Transformer (SimpleViT)
 
-#### Architecture Design (`SimpleViT`)
+#### Architecture Design
 `SimpleViT` adapts the plain Vision Transformer backbone design from ViTDet (Li et al., ECCV 2022) for MiniPlaces scene classification:
 - **Patch Embedding**: Images of resolution $128 \times 128 \times 3$ are projected by non-overlapping $16 \times 16$ convolutions into a grid of $8 \times 8 = 64$ patch tokens of dimension $D = 192$.
 - **Positional Embeddings**: Learnable absolute 2D positional embeddings of shape `(1, 8, 8, 192)` initialized with truncated normal distribution ($\sigma = 0.02$) are added directly to the patch tokens.
@@ -64,7 +77,7 @@ When `window_size > 0`, the spatial feature map is partitioned into non-overlapp
 - **Dataset**: MiniPlaces ($128 \times 128$ crops, random horizontal flip, color jitter 0.15, random rotation $\pm 15^\circ$, normalized with ImageNet statistics).
 - **Optimizer**: AdamW with learning rate $1 \times 10^{-3}$, weight decay $0.05$, and batch size $512$.
 - **Scheduler**: 1 warmup epoch with linear warmup followed by cosine annealing over 60 epochs (total 61 epochs).
-- **Precision**: Mixed precision (FP16 GradScaler) running on an NVIDIA Tesla T4 GPU.
+- **Precision**: Mixed precision (FP16 GradScaler) running on an NVIDIA Tesla T4 GPU (~2.5 hours total training time).
 - **Parameter Decay**: All linear and convolutional layer weights receive weight decay; 1D normalization weights, biases, and positional embeddings are explicitly excluded from weight decay.
 
 #### Experimental Results
@@ -78,28 +91,17 @@ The Vision Transformer trained steadily from an initial loss of $4.59$ down to $
 | Training Top-5 Accuracy | **72.72%** | — |
 | Final Training Loss | **2.1691** | — |
 
-![SimpleViT training loss and cosine annealing schedule.](../results/cls_vit/figures/loss_curves.png)
+![SimpleViT training loss and cosine annealing schedule.](figures/vit_loss_curves.png)
 
-*Figure 1: SimpleViT training loss and cosine annealing learning rate schedule across 61 epochs.*
+*Figure 2: SimpleViT training loss and cosine annealing learning rate schedule across 61 epochs.*
 
-![SimpleViT Top-1 and Top-5 accuracy curves.](../results/cls_vit/figures/accuracy_curves.png)
+![SimpleViT Top-1 and Top-5 accuracy curves.](figures/vit_accuracy_curves.png)
 
-*Figure 2: Training and validation accuracy curves for Top-1 (left) and Top-5 (right) across epochs.*
+*Figure 3: Training and validation accuracy curves for Top-1 (left) and Top-5 (right) across epochs.*
 
 The model achieves **40.58% Top-1** and **70.40% Top-5** accuracy on the MiniPlaces validation set, matching the expected ~40% baseline target for the architecture trained from scratch. The combination of local window attention and global attention blocks keeps computational overhead manageable while providing strong contextual representation.
 
-### I.4 Comparison
-![Validation top-1 and top-5 accuracy per epoch.](figures/cls_curves.png)
-
-*Figure: Validation accuracy during training (no flip averaging) of SimpleNet (provided, trained from scratch, 60 epochs), our custom CNN (scratch, 60 epochs) and fine-tuned ResNet-18 (20 epochs).*
-
-| Model | Initialization | Params | Epochs | Top-1 | Top-5 |
-|---|---|---|---|---|---|
-| SimpleNet (provided) | scratch | ~0.37M | 60 | 42.66 | 72.55 |
-| Custom CNN | scratch | ~11.2M | 60 | 49.83 | 78.36 |
-| ResNet-18 | ImageNet-pretrained, fine-tuned | ~11.2M | 20 | 57.68 | 84.91 |
-
-We trained SimpleNet with the default configuration (`results/cls_simplenet/`); it reaches 42.66% top-1, consistent with the ~40% given in the assignment. Its training top-1 (43.4%) is close to its validation top-1 (42.3%), so it is limited by capacity rather than overfitting, whereas our CNN overfits (66% vs. 49%). Our CNN improves on SimpleNet by about 7 points top-1 (49.83% vs. 42.66%) and about 6 points top-5. Part of this gain comes from BatchNorm and skip connections, which make the deeper network trainable, and part from the much larger capacity, so the comparison does not isolate either factor. Fine-tuned ResNet-18 is the best of the three, about 8 points above our CNN (57.68% vs. 49.83% top-1) and 15 points above SimpleNet, even though it trained for a third as many epochs. It has nearly the same architecture and parameter count, so the gap is explained by ImageNet pretraining, not model design: the pretrained network starts at ~41% top-1 after the first epoch, while ours starts near 7% and needs about 25–30 epochs to pass SimpleNet's final level. ResNet-18 fine-tuning used lr 0.01 and the same optimizer, schedule and augmentation as the CNN run; its config, training logs and eval output are in `results/cls_resnet18/`. The SimpleNet config, logs, eval output and checkpoint are in `results/cls_simplenet/`. Table values are from `eval_cls.py` on the final checkpoints; the curves show training-time validation accuracy, which is about 0.7 points lower because it does not use flip averaging.
+Files: config `results/cls_vit/cls_miniplaces_vit.yaml` (and `config.txt`), logs `results/cls_vit/logs/`, summary `results/cls_vit/eval_summary.txt`, figures `results/cls_vit/figures/`, final checkpoint `results/cls_vit/model_final.pth.tar`.
 
 ---
 
@@ -144,9 +146,9 @@ Training settings (default config):
 
 Training took about 24 minutes. The total loss fell from roughly 2.5 to 1.1; classification and regression settle near 0.25 and center-ness near 0.6.
 
-![Training loss and learning-rate schedule.](../results/det_fcos/figures/loss_curves.png)
+![Training loss and learning-rate schedule.](figures/det_loss_curves.png)
 
-*Figure 3: Training losses (total, classification, regression, center-ness) and the warmup–cosine learning-rate schedule.*
+*Figure 4: Training losses (total, classification, regression, center-ness) and the warmup–cosine learning-rate schedule.*
 
 Results on VOC 2007 test:
 
@@ -159,16 +161,18 @@ Results on VOC 2007 test:
 
 Our model reaches 59.3% mAP@0.5, about 1.6 points below the pretrained reference. The difference comes from a lighter schedule — batch 4, lr 5e-3, 10 epochs, 480-px input versus the reference's batch 32, lr 0.02, 12 epochs, 640-px input. Accuracy is highest on large objects and lowest on small ones, as expected at this input resolution.
 
-![Sample detections on VOC 2007 test images.](../results/det_fcos/figures/sample_detections.png)
+![Sample detections on VOC 2007 test images.](figures/det_sample_detections.png)
 
-*Figure 4: Sample detections on the test set, showing correct localization across categories and scene types.*
+*Figure 5: Sample detections on the test set, showing correct localization across categories and scene types.*
 
 ---
 
 ## Contributions
 - **Akshat** — Object detection (FCOS inference and training loss), repository/infra setup.
 - **Ashvin** — Custom CNN design and training (`CustomNet`), fine-tuned ResNet-18 run, CHTC/Colab job setup, SimpleNet baseline run, CNN vs. SimpleNet vs. ResNet-18 comparison.
-- **Shubhangi** — *(self-attention, Transformer block, Vision Transformer)*
+- **Shubhangi** — Multi-head self-attention (`Attention`), local-window Pre-LN Transformer block (`TransformerBlock`), and Vision Transformer architecture (`SimpleViT`) design, implementation, 60-epoch training on MiniPlaces, evaluation, and writeup.
 
 ## Additional packages
 Beyond the required packages, we used: `opencv-python-headless`, `matplotlib` (for plots), and `fonts-freefont-ttf` (so `eval_det.py -v` can render label fonts on a headless server).
+
+For Vision Transformer (ViT) implementation, training, and evaluation, no additional packages beyond the standard assignment requirements (`torch`, `torchvision`, `numpy`, `opencv-python`, `pyyaml`, `pillow`, `tensorboard`, `gdown`, `pycocotools`) were used.
