@@ -1,0 +1,12 @@
+# Versions below match the CHTC runs (image pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime, Python 3.11).
+# Install a CUDA build of torch first if pip's default does not match your driver, e.g.
+#   pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu121
+torch==2.4.1
+torchvision==0.19.1
+numpy
+opencv-python-headless
+pyyaml
+pillow
+tensorboard
+gdown
+pycocotools
