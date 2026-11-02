@@ -38,7 +38,7 @@ All implementation happens in **two files**. Everything else is provided.
 
 > **Status:** the classification CNN (I.2), self-attention / Transformer / ViT (I.3, I.4) and
 > both FCOS pieces (II.1, II.2) are implemented. `default_cnn_model` points to `CustomNet`
-> (a ResNet-style CNN); the provided `SimpleNet` is still in the file for reference.
+> (a ResNet-style CNN). The provided `SimpleNet` is kept in the file and can be trained with `model_type: SIMPLENET` (`configs/cls_miniplaces_simplenet.yaml`) for the baseline comparison.
 
 ---
 
@@ -49,7 +49,7 @@ All implementation happens in **two files**. Everything else is provided.
 ├── code/
 │   ├── cls_libs/        # classification: dataset, engine, blocks, modeling (EDIT modeling.py)
 │   ├── det_libs/        # detection: dataset, engine, losses, point_generator, modeling (EDIT modeling.py)
-│   ├── configs/         # YAML configs (cls_miniplaces_*.yaml, det_voc_fcos.yaml)
+│   ├── configs/         # YAML configs (cls_miniplaces_{cnn,resnet18,simplenet,vit}.yaml, det_voc_fcos.yaml)
 │   ├── train_cls.py  eval_cls.py
 │   └── train_det.py  eval_det.py
 ├── data/                # datasets live here (downloaded; NOT committed except starter JSON)
@@ -145,7 +145,7 @@ python eval_cls.py configs/cls_miniplaces_cnn.yaml ../logs/<exp>/
 - The final weights are saved as `model_final.pth.tar` in the experiment folder.
 - Quick sanity check of any model on CPU: add `devices: ["cpu"]` and `opt: {epochs: 1}` to a copy
   of the config.
-- Training on a GPU is strongly recommended. The CNN run takes 60 epochs and ResNet-18 fine-tuning
+- Training on a GPU is strongly recommended. The CNN and SimpleNet runs take 60 epochs and ResNet-18 fine-tuning
   takes 20 (see `code/cls_libs/config.py` for defaults).
 
 Run all commands from the **`code/`** directory.
@@ -164,6 +164,7 @@ python eval_cls.py  --help
 # train (config selects the model via model_type / its own file)
 python train_cls.py configs/cls_miniplaces_cnn.yaml          # our CustomNet CNN (default_cnn_model)
 python train_cls.py configs/cls_miniplaces_resnet18.yaml     # fine-tune ImageNet ResNet-18
+python train_cls.py configs/cls_miniplaces_simplenet.yaml    # provided SimpleNet baseline (model_type SIMPLENET)
 python train_cls.py configs/cls_miniplaces_vit.yaml          # SimpleViT (AdamW)
 
 # resume from an epoch checkpoint
@@ -206,12 +207,12 @@ devices:
 ### 4.5 Reproducing our classification results (any GPU, no CHTC needed)
 
 `reproduce_cls.sh` runs the exact steps we ran on CHTC (train, evaluate, collect outputs) and writes the
-same files as `results/cls_cnn/` and `results/cls_resnet18/`:
+same files as `results/cls_cnn/`, `results/cls_resnet18/` and `results/cls_simplenet/`:
 
 ```bash
 pip install -r requirements.txt            # on Colab, skip torch/torchvision (keep Colab's CUDA build) and install the rest
 mkdir -p data && sh download_cls_dataset.sh
-./reproduce_cls.sh                         # or: ./reproduce_cls.sh cnn   /   ./reproduce_cls.sh resnet18
+./reproduce_cls.sh                         # or: ./reproduce_cls.sh cnn   /   resnet18   /   simplenet
 ```
 
 Outputs go to `./reproduced/` (override with `OUT_DIR=...`), so `results/` is never overwritten:
@@ -219,10 +220,11 @@ Outputs go to `./reproduced/` (override with `OUT_DIR=...`), so `results/` is ne
 ```
 reproduced/cls_cnn/       cls_miniplaces_cnn.yaml  config.txt  eval_cls_miniplaces_cnn.txt  tensorboard/  model_final.pth.tar
 reproduced/cls_resnet18/  cls_miniplaces_resnet18.yaml  config.txt  eval_cls_miniplaces_resnet18.txt  tensorboard/
+reproduced/cls_simplenet/ cls_miniplaces_simplenet.yaml  config.txt  eval_cls_miniplaces_simplenet.txt  tensorboard/
 ```
 
 Training is not seeded and uses fp16 and cuDNN autotuning, so accuracies will differ slightly from ours
-(CNN 49.83 / 78.36, ResNet-18 57.68 / 84.91 top-1 / top-5). Expect about 1 point of run-to-run variation. The
+(CNN 49.83 / 78.36, ResNet-18 57.68 / 84.91, SimpleNet 42.66 / 72.55 top-1 / top-5). Expect about 1 point of run-to-run variation. The
 60-epoch CNN run needs a GPU; on Colab, run it in a background cell or under `tmux` so it is not lost.
 
 ### 4.4 Monitoring

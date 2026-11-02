@@ -1,12 +1,12 @@
 #!/bin/bash
 # Reproduces our classification runs on any machine with a GPU (Colab, a lab server, a laptop with CUDA).
-# It trains, evaluates, and lays the outputs out exactly like the files in results/cls_cnn and results/cls_resnet18.
+# It trains, evaluates, and lays the outputs out exactly like the files in results/cls_cnn, results/cls_resnet18 and results/cls_simplenet.
 #
-# usage: ./reproduce_cls.sh [cnn|resnet18|all]      (default: all)
+# usage: ./reproduce_cls.sh [cnn|resnet18|simplenet|all]      (default: all)
 # env:   OUT_DIR=<dir>  where to write the results folders (default: ./reproduced, so results/ is never overwritten)
 #
 # Prerequisites: pip install -r requirements.txt, and the MiniPlaces data in ./data (sh download_cls_dataset.sh).
-# Training is not seeded, so accuracies will differ slightly from ours (CNN ~49.8% top-1, ResNet-18 ~57.7%).
+# Training is not seeded, so accuracies will differ slightly from ours (CNN ~49.8% top-1, ResNet-18 ~57.7%, SimpleNet ~42.7%).
 set -e
 set -o pipefail
 WHICH=${1:-all}
@@ -43,7 +43,9 @@ run_one() {
 case $WHICH in
     cnn)      run_one cls_miniplaces_cnn.yaml cls_cnn yes ;;
     resnet18) run_one cls_miniplaces_resnet18.yaml cls_resnet18 no ;;
+    simplenet) run_one cls_miniplaces_simplenet.yaml cls_simplenet no ;;
     all)      run_one cls_miniplaces_cnn.yaml cls_cnn yes
-              run_one cls_miniplaces_resnet18.yaml cls_resnet18 no ;;
-    *)        echo "usage: $0 [cnn|resnet18|all]" >&2; exit 1 ;;
+              run_one cls_miniplaces_resnet18.yaml cls_resnet18 no
+              run_one cls_miniplaces_simplenet.yaml cls_simplenet no ;;
+    *)        echo "usage: $0 [cnn|resnet18|simplenet|all]" >&2; exit 1 ;;
 esac

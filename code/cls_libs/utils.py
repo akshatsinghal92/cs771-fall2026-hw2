@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 from .lr_scheduler import LinearWarmupMultiStepLR, LinearWarmupCosineAnnealingLR
 from .dataset import MiniPlacesLoader
-from .modeling import default_cnn_model, default_vit_model
+from .modeling import SimpleNet, default_cnn_model, default_vit_model
 from .transforms import get_train_transforms, get_val_transforms
 
 
@@ -158,6 +158,8 @@ def build_model(cfg):
     options = dict(cfg['model'])
     if model_type == 'CNN':
         return default_cnn_model(**options)
+    if model_type == 'SIMPLENET':
+        return SimpleNet(**options)
     if model_type == 'VIT':
         options.setdefault("img_size", cfg["input"]["img_crop_size"])
         return default_vit_model(**options)
