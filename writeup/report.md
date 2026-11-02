@@ -43,9 +43,30 @@ When `window_size > 0`, the spatial feature map is partitioned into non-overlapp
 #### Training Scheme & Configuration
 - **Dataset**: MiniPlaces ($128 \times 128$ crops, random horizontal flip, color jitter 0.15, random rotation $\pm 15^\circ$, normalized with ImageNet statistics).
 - **Optimizer**: AdamW with learning rate $1 \times 10^{-3}$, weight decay $0.05$, and batch size $512$.
-- **Scheduler**: 1 warmup epoch with linear warmup followed by cosine annealing over 60 epochs.
-- **Precision**: Mixed precision (FP16 GradScaler) when running on CUDA.
+- **Scheduler**: 1 warmup epoch with linear warmup followed by cosine annealing over 60 epochs (total 61 epochs).
+- **Precision**: Mixed precision (FP16 GradScaler) running on an NVIDIA Tesla T4 GPU.
 - **Parameter Decay**: All linear and convolutional layer weights receive weight decay; 1D normalization weights, biases, and positional embeddings are explicitly excluded from weight decay.
+
+#### Experimental Results
+The Vision Transformer trained steadily from an initial loss of $4.59$ down to $2.17$. Validation accuracy plateaued near epoch 55–60:
+
+| Metric | Result | Target / Baseline |
+|--------|--------|-------------------|
+| Validation Top-1 Accuracy | **40.58%** (Best: 40.65%) | ~40.0% |
+| Validation Top-5 Accuracy | **70.40%** (Best: 70.51%) | — |
+| Training Top-1 Accuracy | **42.99%** | — |
+| Training Top-5 Accuracy | **72.72%** | — |
+| Final Training Loss | **2.1691** | — |
+
+![SimpleViT training loss and cosine annealing schedule.](../results/cls_vit/figures/loss_curves.png)
+
+*Figure 1: SimpleViT training loss and cosine annealing learning rate schedule across 61 epochs.*
+
+![SimpleViT Top-1 and Top-5 accuracy curves.](../results/cls_vit/figures/accuracy_curves.png)
+
+*Figure 2: Training and validation accuracy curves for Top-1 (left) and Top-5 (right) across epochs.*
+
+The model achieves **40.58% Top-1** and **70.40% Top-5** accuracy on the MiniPlaces validation set, matching the expected ~40% baseline target for the architecture trained from scratch. The combination of local window attention and global attention blocks keeps computational overhead manageable while providing strong contextual representation.
 
 ### I.4 Comparison
 *(Best CNN vs. provided SimpleNet vs. fine-tuned ResNet-18 — training curves and top-1/top-5 accuracy.)*
@@ -95,7 +116,7 @@ Training took about 24 minutes. The total loss fell from roughly 2.5 to 1.1; cla
 
 ![Training loss and learning-rate schedule.](../results/det_fcos/figures/loss_curves.png)
 
-*Figure 1: Training losses (total, classification, regression, center-ness) and the warmup–cosine learning-rate schedule.*
+*Figure 3: Training losses (total, classification, regression, center-ness) and the warmup–cosine learning-rate schedule.*
 
 Results on VOC 2007 test:
 
@@ -110,7 +131,7 @@ Our model reaches 59.3% mAP@0.5, about 1.6 points below the pretrained reference
 
 ![Sample detections on VOC 2007 test images.](../results/det_fcos/figures/sample_detections.png)
 
-*Figure 2: Sample detections on the test set, showing correct localization across categories and scene types.*
+*Figure 4: Sample detections on the test set, showing correct localization across categories and scene types.*
 
 ---
 

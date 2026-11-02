@@ -1,0 +1,11 @@
+output_folder: "../logs"
+model_type: "VIT"
+dataset:
+  root_folder: "../data"
+
+opt:
+  type: AdamW
+  weight_decay: 0.05
+  learning_rate: 0.001
+
+# see cls_libs/config.py for more details
