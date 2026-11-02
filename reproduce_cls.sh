@@ -44,8 +44,10 @@ case $WHICH in
     cnn)      run_one cls_miniplaces_cnn.yaml cls_cnn yes ;;
     resnet18) run_one cls_miniplaces_resnet18.yaml cls_resnet18 no ;;
     simplenet) run_one cls_miniplaces_simplenet.yaml cls_simplenet no ;;
+    vit)      run_one cls_miniplaces_vit.yaml cls_vit yes ;;
     all)      run_one cls_miniplaces_cnn.yaml cls_cnn yes
               run_one cls_miniplaces_resnet18.yaml cls_resnet18 no
-              run_one cls_miniplaces_simplenet.yaml cls_simplenet no ;;
-    *)        echo "usage: $0 [cnn|resnet18|simplenet|all]" >&2; exit 1 ;;
+              run_one cls_miniplaces_simplenet.yaml cls_simplenet no
+              run_one cls_miniplaces_vit.yaml cls_vit yes ;;
+    *)        echo "usage: $0 [cnn|resnet18|simplenet|vit|all]" >&2; exit 1 ;;
 esac

@@ -61,3 +61,4 @@ chtc/*.err
 
 # Output of reproduce_cls.sh
 reproduced/
+submission.zip
