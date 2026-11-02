@@ -1,0 +1,7 @@
+output_folder: "../logs"
+# the provided SimpleNet baseline (Part I.1), trained with the default settings
+model_type: "SIMPLENET"
+dataset:
+  root_folder: "../data"
+
+# see cls_libs/config.py for more details
