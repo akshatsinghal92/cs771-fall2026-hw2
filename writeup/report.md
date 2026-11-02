@@ -30,10 +30,63 @@ Validation accuracy plateaus over the last ~10 epochs as the cosine schedule dec
 Files: config `results/cls_cnn/cls_miniplaces_cnn.yaml`, logs `results/cls_cnn/tensorboard/`, `config.txt` and `eval_cls_miniplaces_cnn.txt`, final checkpoint `results/cls_cnn/model_final.pth.tar`.
 
 ### I.2 Self-Attention and Transformer Block
-*(Shubhangi — brief explanation of multi-head self-attention and the local-window Transformer block.)*
+
+#### Multi-Head Self-Attention (MSA)
+Self-attention computes a weighted representation of input tokens by measuring pairwise similarities between query and key projections. Given an input sequence of tokens $Z^0 \in \mathbb{R}^{T \times D}$ where $T = H \times W$ and $D$ is the embedding dimension, learnable linear projections produce queries, keys, and values:
+$$Q = Z^0 W_Q, \quad K = Z^0 W_K, \quad V = Z^0 W_V$$
+where $W_Q, W_K, W_V \in \mathbb{R}^{D \times D}$. For multi-head self-attention with $h$ heads, the channel dimension is split such that each head operates on vectors of dimension $d_k = D / h$. The attention matrix for each head computes scaled dot-product similarities followed by row-wise softmax:
+$$S = \text{softmax}\left(\frac{Q K^T}{\sqrt{d_k}}\right) V$$
+where $\frac{1}{\sqrt{d_k}}$ prevents vanishing gradients in the softmax for larger head dimensions. The outputs across all $h$ heads are concatenated along the feature dimension and projected back through an output linear layer $W_O \in \mathbb{R}^{D \times D}$.
+
+In `cls_libs/modeling.py`, `Attention.forward` maps an input tensor of shape `(B, H, W, C)` to queries, keys, and values of shape `(B * num_heads, H * W, head_dim)`. After evaluating the scaled dot-product attention and multiplying by $V$, the resulting tensor is reshaped to `(B, num_heads, H, W, head_dim)`, permuted to `(B, H, W, num_heads, head_dim)`, flattened along the channel dimension back to `(B, H, W, C)`, and finally projected via `self.proj`.
+
+#### Pre-LN Transformer Block with Local Window Self-Attention
+While standard multi-head self-attention computes global interactions across all $T$ tokens with $\mathcal{O}(T^2 D + D^2 T)$ complexity, this quadratic cost becomes prohibitive for high-resolution vision tasks. To mitigate this, local window self-attention partitions tokens into non-overlapping spatial windows of size $W_w \times W_w$, bounding computational complexity to $\mathcal{O}(W_w^2 T D + D^2 T)$ where $W_w^2 \ll T$.
+
+The block follows the Pre-LayerNorm (Pre-LN) design with stochastic depth regularization (DropPath):
+$$x_1 = x_0 + \text{DropPath}\left(\text{WindowMSA}(\text{LN}_1(x_0))\right)$$
+$$x_2 = x_1 + \text{DropPath}\left(\text{MLP}(\text{LN}_2(x_1))\right)$$
+where the MLP consists of two linear layers with a GELU activation and expansion ratio `mlp_ratio = 4.0`.
+
+When `window_size > 0`, the spatial feature map is partitioned into non-overlapping windows using `window_partition`, padding the boundaries if $H$ or $W$ is not divisible by $W_w$. Self-attention operates independently within each window. The tokens are then reassembled into the full spatial layout using `window_unpartition` before adding the residual connection. When `window_size = 0`, the block performs full global self-attention across all tokens.
 
 ### I.3 Vision Transformer
-*(Shubhangi — SimpleViT design, training scheme, results; include config, logs, final checkpoint.)*
+
+#### Architecture Design (`SimpleViT`)
+`SimpleViT` adapts the plain Vision Transformer backbone design from ViTDet (Li et al., ECCV 2022) for MiniPlaces scene classification:
+- **Patch Embedding**: Images of resolution $128 \times 128 \times 3$ are projected by non-overlapping $16 \times 16$ convolutions into a grid of $8 \times 8 = 64$ patch tokens of dimension $D = 192$.
+- **Positional Embeddings**: Learnable absolute 2D positional embeddings of shape `(1, 8, 8, 192)` initialized with truncated normal distribution ($\sigma = 0.02$) are added directly to the patch tokens.
+- **Interleaved Window & Global Attention Blocks**: We stack $L = 4$ Transformer blocks with $h = 4$ attention heads each. To balance computation and receptive field, blocks at indices `(0, 2)` use local window attention ($W_w = 4$), while blocks at `(1, 3)` perform global self-attention. This allows efficient local feature extraction while enabling global context propagation across windows.
+- **Stochastic Depth**: DropPath rates are linearly decayed from $0.0$ to $0.10$ across the depth of the network.
+- **Classification Head**: The output of the final block passes through a LayerNorm, followed by global average pooling across the $8 \times 8$ spatial tokens, and a linear classifier mapping the $192$-dimensional embedding to $100$ scene categories.
+
+#### Training Scheme & Configuration
+- **Dataset**: MiniPlaces ($128 \times 128$ crops, random horizontal flip, color jitter 0.15, random rotation $\pm 15^\circ$, normalized with ImageNet statistics).
+- **Optimizer**: AdamW with learning rate $1 \times 10^{-3}$, weight decay $0.05$, and batch size $512$.
+- **Scheduler**: 1 warmup epoch with linear warmup followed by cosine annealing over 60 epochs (total 61 epochs).
+- **Precision**: Mixed precision (FP16 GradScaler) running on an NVIDIA Tesla T4 GPU.
+- **Parameter Decay**: All linear and convolutional layer weights receive weight decay; 1D normalization weights, biases, and positional embeddings are explicitly excluded from weight decay.
+
+#### Experimental Results
+The Vision Transformer trained steadily from an initial loss of $4.59$ down to $2.17$. Validation accuracy plateaued near epoch 55–60:
+
+| Metric | Result | Target / Baseline |
+|--------|--------|-------------------|
+| Validation Top-1 Accuracy | **40.58%** (Best: 40.65%) | ~40.0% |
+| Validation Top-5 Accuracy | **70.40%** (Best: 70.51%) | — |
+| Training Top-1 Accuracy | **42.99%** | — |
+| Training Top-5 Accuracy | **72.72%** | — |
+| Final Training Loss | **2.1691** | — |
+
+![SimpleViT training loss and cosine annealing schedule.](../results/cls_vit/figures/loss_curves.png)
+
+*Figure 1: SimpleViT training loss and cosine annealing learning rate schedule across 61 epochs.*
+
+![SimpleViT Top-1 and Top-5 accuracy curves.](../results/cls_vit/figures/accuracy_curves.png)
+
+*Figure 2: Training and validation accuracy curves for Top-1 (left) and Top-5 (right) across epochs.*
+
+The model achieves **40.58% Top-1** and **70.40% Top-5** accuracy on the MiniPlaces validation set, matching the expected ~40% baseline target for the architecture trained from scratch. The combination of local window attention and global attention blocks keeps computational overhead manageable while providing strong contextual representation.
 
 ### I.4 Comparison
 ![Validation top-1 and top-5 accuracy per epoch.](figures/cls_curves.png)
@@ -93,7 +146,7 @@ Training took about 24 minutes. The total loss fell from roughly 2.5 to 1.1; cla
 
 ![Training loss and learning-rate schedule.](../results/det_fcos/figures/loss_curves.png)
 
-*Figure 1: Training losses (total, classification, regression, center-ness) and the warmup–cosine learning-rate schedule.*
+*Figure 3: Training losses (total, classification, regression, center-ness) and the warmup–cosine learning-rate schedule.*
 
 Results on VOC 2007 test:
 
@@ -108,7 +161,7 @@ Our model reaches 59.3% mAP@0.5, about 1.6 points below the pretrained reference
 
 ![Sample detections on VOC 2007 test images.](../results/det_fcos/figures/sample_detections.png)
 
-*Figure 2: Sample detections on the test set, showing correct localization across categories and scene types.*
+*Figure 4: Sample detections on the test set, showing correct localization across categories and scene types.*
 
 ---
 

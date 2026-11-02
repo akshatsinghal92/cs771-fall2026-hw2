@@ -1,0 +1,11 @@
+Vision Transformer (SimpleViT) Evaluation Summary
+Dataset: MiniPlaces (100 classes, 10,000 validation images)
+Total Training Epochs: 60 (+1 warmup)
+--------------------------------------------------
+Final Validation Top-1 Accuracy: 40.58%
+Final Validation Top-5 Accuracy: 70.40%
+Best Validation Top-1 Accuracy:  40.65% (Epoch 58)
+Best Validation Top-5 Accuracy:  70.51% (Epoch 57)
+Final Training Top-1 Accuracy:   42.99%
+Final Training Top-5 Accuracy:   72.72%
+Final Training Loss:             2.1691
