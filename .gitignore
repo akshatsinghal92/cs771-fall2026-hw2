@@ -41,22 +41,14 @@ logs_*.tar.gz
 results/**/epoch_*.pth
 results/**/epoch_*.pth.tar
 
-# Cluster/notebook helper files (kept locally only)
-chtc/cls.sub
-chtc/run_cls.sh
-colab_cls.ipynb
-chtc/eval_cls.sub
-chtc/run_eval_cls.sh
-transfer_to_chtc.sh
-
 # ResNet-18 / SimpleNet checkpoints: not required by the handout
 results/cls_resnet18/model_final.pth.tar
 results/cls_simplenet/model_final.pth.tar
 
 # CHTC job logs and eval outputs copied back to the repo root
-chtc/*.log
-chtc/*.out
-chtc/*.err
+code/scripts/chtc/*.log
+code/scripts/chtc/*.out
+code/scripts/chtc/*.err
 /eval_cls_*.txt
 
 # Output of reproduce_cls.sh

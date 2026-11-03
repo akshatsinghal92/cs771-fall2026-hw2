@@ -206,13 +206,13 @@ devices:
 
 ### 4.5 Reproducing our classification results (any GPU, no CHTC needed)
 
-`reproduce_cls.sh` runs the exact steps we ran on CHTC (train, evaluate, collect outputs) and writes the
+`code/scripts/reproduce_cls.sh` runs the exact steps we ran on CHTC (train, evaluate, collect outputs) and writes the
 same files as `results/cls_cnn/`, `results/cls_resnet18/` and `results/cls_simplenet/`:
 
 ```bash
-pip install -r requirements.txt            # on Colab, skip torch/torchvision (keep Colab's CUDA build) and install the rest
+pip install -r code/requirements.txt            # on Colab, skip torch/torchvision (keep Colab's CUDA build) and install the rest
 mkdir -p data && sh download_cls_dataset.sh
-./reproduce_cls.sh                         # or: ./reproduce_cls.sh cnn   /   resnet18   /   simplenet
+code/scripts/reproduce_cls.sh             # or: code/scripts/reproduce_cls.sh cnn   /   resnet18   /   simplenet
 ```
 
 Outputs go to `./reproduced/` (override with `OUT_DIR=...`), so `results/` is never overwritten:
