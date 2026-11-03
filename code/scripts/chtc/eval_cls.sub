@@ -1,0 +1,30 @@
+# Submit from the repo root on a CHTC submit node:  condor_submit code/scripts/chtc/eval_cls.sub
+# Needs the final checkpoint(s) at the paths listed in the queue block (relative to the repo root).
+universe                = docker
+docker_image            = pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
+
+executable              = code/scripts/chtc/run_eval_cls.sh
+arguments               = $(config) $(ckpt)
+
+# code/ is copied as ./code; the checkpoint lands in the job's top-level directory
+transfer_input_files    = code, $(ckpt)
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+transfer_output_files   = eval_$Fn(config).txt
+
+log                     = code/scripts/chtc/eval_$Fn(config).log
+output                  = code/scripts/chtc/eval_$Fn(config).out
+error                   = code/scripts/chtc/eval_$Fn(config).err
+
+request_gpus            = 1
+request_cpus            = 4
+request_memory          = 16GB
+request_disk            = 20GB
++WantGPULab             = true
++GPUJobLength           = "short"
+
+# one job per (config, checkpoint)
+queue config,ckpt from (
+  cls_miniplaces_cnn.yaml,results/cls_cnn/model_final.pth.tar
+  cls_miniplaces_resnet18.yaml,results/cls_resnet18/model_final.pth.tar
+)
